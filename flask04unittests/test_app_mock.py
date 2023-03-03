@@ -1,5 +1,6 @@
-import unittest
 import json
+import unittest
+from unittest.mock import patch
 
 
 class FlaskTestCase(unittest.TestCase):
@@ -8,15 +9,19 @@ class FlaskTestCase(unittest.TestCase):
 
         self.app = app.test_client()
 
-    def test_login_success(self):
+    @patch("app.create_access_token")
+    def test_login_success(self, mock):
+        mock.return_value = "mock-token"
         payload = {"username": "john", "password": "1234"}
         response = self.app.post(
             "/login", data=json.dumps(payload), content_type="application/json"
         )
         self.assertEqual(response.status_code, 200)
-        self.assertTrue("access_token" in response.json)
+        self.assertEqual(response.json, {"access_token": "mock-token"})
 
-    def test_login_failure(self):
+    @patch("app.create_access_token")
+    def test_login_failure(self, mock_create_access_token):
+        mock_create_access_token.return_value = "mock-token"
         payload = {"username": "john", "password": "wrong-password"}
         response = self.app.post(
             "/login", data=json.dumps(payload), content_type="application/json"
@@ -24,34 +29,26 @@ class FlaskTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json, {"message": "Invalid username or password"})
 
-    def test_protected(self):
-        payload = {"username": "john", "password": "1234"}
-        response = self.app.post(
-            "/login", data=json.dumps(payload), content_type="application/json"
-        )
-        token = response.json["access_token"]
-        headers = {"Authorization": "Bearer " + token}
-        response = self.app.get("/protected", headers=headers)
+    @patch("flask_jwt_extended.view_decorators.verify_jwt_in_request")
+    def test_protected(self, mock):
+        mock.return_value = None
+        response = self.app.get("/protected")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, {"message": "Access granted"})
 
 
 class SecureDataTestCase(unittest.TestCase):
     def setUp(self):
-        from app import app
+        # from app import app
         from secure_app import app as secure_app
 
-        self.app = app.test_client()
+        # self.app = app.test_client()
         self.secure_app = secure_app.test_client()
 
-    def test_secure_data(self):
-        payload = {"username": "john", "password": "1234"}
-        response = self.app.post(
-            "/login", data=json.dumps(payload), content_type="application/json"
-        )
-        token = response.json["access_token"]
-        headers = {"Authorization": "Bearer " + token}
-        response = self.secure_app.get("/secure-data", headers=headers)
+    @patch("flask_jwt_extended.view_decorators.verify_jwt_in_request")
+    def test_secure_data(self, mock):
+        mock.return_value = None
+        response = self.secure_app.get("/secure-data")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json,
