@@ -12,4 +12,6 @@ Maybe you need to run last command in certain folder, for example:
     cd ../any-folder
     pip install -r requirements.txt
 
+Drafts:
 
+    python -c 'import secrets; print(secrets.token_hex())'
